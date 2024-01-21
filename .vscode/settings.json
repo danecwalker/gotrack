@@ -1,0 +1,6 @@
+{
+  "files.associations": {
+    "*.js.tmpl": "javascript",
+    "*.html.tmpl": "html"
+  }
+}
