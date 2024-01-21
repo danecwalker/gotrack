@@ -25,6 +25,7 @@ func TrackEvent(store store.Store) func(w http.ResponseWriter, r *http.Request) 
 
 		// Parse the request body into an event.Event.
 		var ev event.Event
+		ev.Timestamp = time.Now()
 		err := json.NewDecoder(r.Body).Decode(&ev)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
@@ -47,7 +48,7 @@ func TrackEvent(store store.Store) func(w http.ResponseWriter, r *http.Request) 
 		ev.Device = event.Desktop
 		if ua.Mobile {
 			ev.Device = event.Mobile
-		} else if ua.Tablet || (ua.Desktop && ev.MaxNumTouches > 2) {
+		} else if ua.Tablet {
 			ev.Device = event.Tablet
 		}
 
@@ -103,8 +104,9 @@ func TrackEvent(store store.Store) func(w http.ResponseWriter, r *http.Request) 
 			w.Write([]byte("Failed to save event"))
 			return
 		}
+		store.Save(ev)
 		// Return a 200 OK response.
-		w.WriteHeader(http.StatusOK)
+		w.WriteHeader(http.StatusAccepted)
 	}
 }
 

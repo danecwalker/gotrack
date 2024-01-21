@@ -68,7 +68,6 @@
 	  {{end}}
     payload.d = scriptEl.getAttribute('data-domain')
 	  payload.r = document.referrer || null
-    payload.t = navigator.maxTouchPoints ? navigator.maxTouchPoints : 0
     if (options && options.meta) {
 	    payload.m = JSON.stringify(options.meta)
     }
@@ -146,7 +145,7 @@
     }
   {{end}}
 
-  {{if orany .outbound .downloads .tagged}}
+  {{if orany .outbound .downloads .custom}}
     {{template "customEvents" .}}
   {{end}}
 })()

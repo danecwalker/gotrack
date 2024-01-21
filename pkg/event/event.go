@@ -1,19 +1,21 @@
 package event
 
+import "time"
+
 type Event struct {
-	Session       string                 `json:"s"`
-	Name          string                 `json:"n"`
-	Referrer      string                 `json:"r"`
-	Url           string                 `json:"u"`
-	Domain        string                 `json:"d"`
-	MaxNumTouches int                    `json:"t"`
-	Meta          map[string]interface{} `json:"m"`
-	Props         map[string]interface{} `json:"p"`
-	Revenue       *Revenue               `json:"$"`
-	Browser       string
-	OS            string
-	Device        DeviceType
-	UTM           *UTM
+	Session   string                 `json:"s"`
+	Name      string                 `json:"n"`
+	Referrer  string                 `json:"r"`
+	Url       string                 `json:"u"`
+	Domain    string                 `json:"d"`
+	Meta      map[string]interface{} `json:"m"`
+	Props     map[string]interface{} `json:"p"`
+	Revenue   *Revenue               `json:"$"`
+	Browser   string
+	OS        string
+	Device    DeviceType
+	UTM       *UTM
+	Timestamp time.Time
 }
 
 type UTM struct {
