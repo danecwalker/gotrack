@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "lib": ["ES6", "DOM"],
+    "target": "ES5",
+    "allowJs": false,
+    "jsx": "preserve",
+    "declaration": false,
+    "outDir": "pkg/tag/dist",
+    "removeComments": true,
+    "downlevelIteration": true,
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["pkg/tag/tag.ts"],
+}
