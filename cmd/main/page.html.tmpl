@@ -1,20 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Document</title>
 </head>
+
 <body>
   <h1>Hello World</h1>
-  <form track-event-name="Form Submit" action="/mail" method="post">
+  <form ga-event-name="Form Submit" action="/mail" method="post">
     <input name="email" type="text">
     <button type="submit">Submit</button>
   </form>
   <a href="https://google.com">Google</a>
-  <a href="/">Home</a>
-  <button track-event-name="New Sale">Make Sale</button>
-  <button track-event-name="New Sale" track-revenue-a="20" track-revenue-c="USD">Make Sale</button>
-  <script src="/tag.js"></script>
+  <a href="/" ga-event-name="Link Click"><span>Home</span></a>
+  <!-- <button ga-event-name="New Sale">Make Sale</button> -->
+  <button ga-event-name="New Sale" ga-revenue-amount="20" ga-revenue-currency="USD">Make Sale</button>
+  <script src="/tag/all.js?debug=true"></script>
 </body>
+
 </html>

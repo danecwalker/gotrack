@@ -8,14 +8,23 @@ import (
 	"github.com/evanw/esbuild/pkg/api"
 )
 
-func buildJS() ([]byte, error) {
-	templateFile := "pkg/tag/tag.ts"
-	t := template.Must(template.New("tag.ts").ParseFiles(templateFile))
+type BuildOptions struct {
+	IsDebug        bool
+	IncludeAll     bool
+	IncludeRevenue bool
+}
+
+func buildJS(options *BuildOptions) ([]byte, error) {
+	templateFiles := []string{
+		"pkg/tag/tag.js",
+		"pkg/tag/custom.js",
+	}
+	t, err := template.New("").ParseFiles(templateFiles...)
+	if err != nil {
+		return nil, err
+	}
 	var buffer strings.Builder
-	err := t.Execute(&buffer, map[string]interface{}{
-		"error":         "error 1",
-		"another_error": "another",
-	})
+	err = t.ExecuteTemplate(&buffer, "tag", options)
 	if err != nil {
 		return nil, err
 	}

@@ -1,15 +1,12 @@
 package main
 
 import (
-	"crypto/tls"
 	"fmt"
 	"html/template"
 	"log"
 	"net"
 	"net/http"
-	"net/textproto"
 	"regexp"
-	"strings"
 
 	"github.com/danecwalker/analytics/pkg/analytics"
 	"github.com/danecwalker/analytics/pkg/tag"
@@ -21,28 +18,12 @@ func main() {
 	r := http.NewServeMux()
 
 	r.HandleFunc("/e", analytics.HandleTrackEvent)
-	r.HandleFunc("/tag.js", tag.HandleTag)
+	r.HandleFunc("/tag/", tag.HandleTag)
 
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		t := template.Must(template.New("page.html.tmpl").ParseFiles("cmd/main/page.html.tmpl"))
 		t.Execute(w, map[string]interface{}{})
-	})
-
-	r.HandleFunc("/mail", func(w http.ResponseWriter, r *http.Request) {
-		email := r.FormValue("email")
-
-		// resolve the ip of the recipient mail server
-		mx, err := net.LookupMX(email[strings.Index(email, "@")+1:])
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		// connect to the mail server
-		doSend(email, mx[0].Host)
-
-		w.Header().Set("Location", "/")
-		w.WriteHeader(http.StatusSeeOther)
 	})
 
 	// Start the server on port 3000.
@@ -59,34 +40,4 @@ func main() {
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), r); err != nil {
 		log.Fatal(err)
 	}
-}
-
-func doSend(email, host string) {
-	// get mx record for the recipient
-	mx, err := net.LookupMX(email[strings.Index(email, "@")+1:])
-	if err != nil {
-		log.Fatal(err)
-	}
-	mxHost := mx[0].Host
-
-	for _, a := range mx {
-		log.Println(a.Host)
-	}
-
-	// tls
-	tlsconfig := &tls.Config{
-		InsecureSkipVerify: true,
-	}
-
-	// connect to the remote smtp server
-	conn, err := tls.Dial("tcp", mxHost+":25", tlsconfig)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	t := textproto.NewConn(conn)
-
-	c, l, _ := t.ReadCodeLine(220)
-	log.Println(c, l)
-
 }

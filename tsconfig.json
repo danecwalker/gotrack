@@ -2,7 +2,7 @@
   "compilerOptions": {
     "lib": ["ES6", "DOM"],
     "target": "ES5",
-    "allowJs": false,
+    "allowJs": true,
     "jsx": "preserve",
     "declaration": false,
     "outDir": "pkg/tag/dist",
@@ -17,5 +17,5 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["pkg/tag/tag.ts"],
+  "include": ["pkg/tag/tag.js"],
 }

@@ -1,6 +1,10 @@
 {
+  "editor.formatOnSave": true,
   "files.associations": {
     "*.js.tmpl": "javascript",
     "*.html.tmpl": "html"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
   }
 }
