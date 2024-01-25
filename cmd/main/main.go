@@ -26,6 +26,12 @@ func main() {
 		t.Execute(w, map[string]interface{}{})
 	})
 
+	r.HandleFunc("/admin", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		t := template.Must(template.New("store.html.tmpl").ParseFiles("cmd/main/store.html.tmpl"))
+		t.Execute(w, map[string]interface{}{})
+	})
+
 	// Start the server on port 3000.
 	addr := "127.0.0.1"
 	addrs, _ := net.InterfaceAddrs()

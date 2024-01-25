@@ -14,7 +14,7 @@ func ApplyCors(w http.ResponseWriter) {
 }
 
 func HandleTag(w http.ResponseWriter, r *http.Request) {
-	upath := r.URL.Path[len("/tag/"):]
+	upath := r.URL.Path[len(r.URL.Path)-6:]
 	if upath == "min.js" || upath == "all.js" {
 		switch upath[:3] {
 		case "min":
