@@ -56,6 +56,15 @@ func AllTag(w http.ResponseWriter, r *http.Request) {
 	}
 	ApplyCors(w)
 	w.Header().Set("Content-Type", "application/javascript")
+	accept := r.Header.Get("Accept-Encoding")
+	if strings.Contains(accept, "gzip") {
+		Gzip(w, c)
+		return
+	}
+	if strings.Contains(accept, "deflate") {
+		Deflate(w, c)
+		return
+	}
 	w.WriteHeader(http.StatusOK)
 	w.Write(c)
 }

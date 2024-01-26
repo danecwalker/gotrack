@@ -28,7 +28,7 @@
     if (options && options.props) {
       payload.p = options.props;
     }
-    payload.s = window.innerWidth + 'x' + window.innerHeight;
+    payload.v = window.innerWidth + 'x' + window.innerHeight;
     {{- if .IncludeRevenue -}}
     if (options && options.$) {
       payload.$ = options.$;

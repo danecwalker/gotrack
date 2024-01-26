@@ -2,21 +2,33 @@ package analytics
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 
+	"github.com/danecwalker/analytics/pkg/event"
 	"github.com/danecwalker/analytics/pkg/tag"
-	"github.com/tidwall/pretty"
 )
 
 func HandleTrackEvent(w http.ResponseWriter, r *http.Request) {
-	b, _ := io.ReadAll(r.Body)
-	fmt.Println(string(pretty.Color(pretty.PrettyOptions(b, &pretty.Options{
-		Width:    80,
-		Prefix:   "",
-		Indent:   "  ",
-		SortKeys: false,
-	}), pretty.TerminalStyle)))
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		w.Write([]byte("405 method not allowed"))
+		return
+	}
+
+	if r.Header.Get("Content-Type") != "application/json" {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("400 bad request"))
+		return
+	}
+
+	ev := &event.Event{}
+	err := ev.Parse(r)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(err.Error()))
+		return
+	}
+	fmt.Println(ev)
 	tag.ApplyCors(w)
 	w.WriteHeader(http.StatusAccepted)
 }

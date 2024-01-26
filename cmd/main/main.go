@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"regexp"
 
 	"github.com/danecwalker/analytics/pkg/analytics"
@@ -21,6 +22,7 @@ func main() {
 	r.HandleFunc("/tag/", tag.HandleTag)
 
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Accept-CH", "Sec-CH-UA-Platform, Sec-CH-UA, Sec-CH-UA-Mobile")
 		w.WriteHeader(http.StatusOK)
 		t := template.Must(template.New("page.html.tmpl").ParseFiles("cmd/main/page.html.tmpl"))
 		t.Execute(w, map[string]interface{}{})
@@ -43,6 +45,9 @@ func main() {
 		}
 	}
 	log.Printf("Starting server on http://%s:%d", addr, port)
+	if os.Getenv("GO_ENV") == "dev" {
+		log.Println("Running in dev mode")
+	}
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), r); err != nil {
 		log.Fatal(err)
 	}
