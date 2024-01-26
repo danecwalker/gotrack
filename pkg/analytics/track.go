@@ -1,34 +1,48 @@
 package analytics
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/danecwalker/analytics/pkg/event"
+	"github.com/danecwalker/analytics/pkg/store"
 	"github.com/danecwalker/analytics/pkg/tag"
 )
 
-func HandleTrackEvent(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		w.Write([]byte("405 method not allowed"))
-		return
-	}
+func HandleTrackEvent(store store.DBClient) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			w.Write([]byte("405 method not allowed"))
+			return
+		}
 
-	if r.Header.Get("Content-Type") != "application/json" {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("400 bad request"))
-		return
-	}
+		if r.Header.Get("Content-Type") != "application/json" {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("400 bad request"))
+			return
+		}
 
-	ev := &event.Event{}
-	err := ev.Parse(r)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(err.Error()))
-		return
+		ev := &event.Event{}
+		s, we, err := ev.Parse(r)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(err.Error()))
+			return
+		}
+
+		if err := store.InsertSession(s); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(err.Error()))
+			return
+		}
+
+		if err := store.InsertEvent(we); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(err.Error()))
+			return
+		}
+
+		tag.ApplyCors(w)
+		w.WriteHeader(http.StatusAccepted)
 	}
-	fmt.Println(ev)
-	tag.ApplyCors(w)
-	w.WriteHeader(http.StatusAccepted)
 }

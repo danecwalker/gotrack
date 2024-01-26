@@ -17,21 +17,21 @@ type Event struct {
 	Revenue      map[string]interface{} `json:"$"`
 }
 
-func (e *Event) Parse(r *http.Request) error {
+func (e *Event) Parse(r *http.Request) (*Session, *WEvent, error) {
 	if err := json.NewDecoder(r.Body).Decode(e); err != nil {
-		return err
+		return nil, nil, err
 	}
 
-	s := NewSession()
+	s := NewSession(r)
 	s.ParseViewportSize(e.ViewportSize)
 	s.ParseLanguage(r.Header.Get("Accept-Language"))
 	s.ParseUA(r.Header.Get("User-Agent"), r.Header.Get("Sec-CH-UA-Platform"), r.Header.Get("Sec-CH-UA"))
 
-	ev := NewWEvent()
+	ev := NewWEvent(s.SessionID)
 	ev.Parse(e)
 
 	fmt.Println(utils.PrettyJson(ev))
 	fmt.Println(utils.PrettyJson(s))
 
-	return nil
+	return s, ev, nil
 }

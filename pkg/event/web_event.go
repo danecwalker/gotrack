@@ -14,6 +14,7 @@ type UTM struct {
 }
 
 type WEvent struct {
+	SessionID string
 	EventName string
 	Url       string
 	Referrer  string
@@ -22,10 +23,11 @@ type WEvent struct {
 	UTM       *UTM
 }
 
-func NewWEvent() *WEvent {
+func NewWEvent(session_id string) *WEvent {
 	return &WEvent{
-		Props:   make(map[string]interface{}),
-		Revenue: make(map[string]interface{}),
+		SessionID: session_id,
+		Props:     make(map[string]interface{}),
+		Revenue:   make(map[string]interface{}),
 	}
 }
 
@@ -66,11 +68,12 @@ func (e *WEvent) Parse(ev *Event) error {
 
 	if ref != "" {
 		e.Referrer = ref
-	} else {
+	} else if ev.Referrer != "" {
 		refer, err := url.Parse(ev.Referrer)
 		if err != nil {
 			return err
 		}
+
 		e.Referrer = refer.Scheme + "://" + refer.Host + refer.Path
 	}
 

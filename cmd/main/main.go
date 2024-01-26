@@ -10,6 +10,7 @@ import (
 	"regexp"
 
 	"github.com/danecwalker/analytics/pkg/analytics"
+	"github.com/danecwalker/analytics/pkg/store/sqlite"
 	"github.com/danecwalker/analytics/pkg/tag"
 )
 
@@ -17,8 +18,18 @@ const port int = 3000
 
 func main() {
 	r := http.NewServeMux()
+	s, err := sqlite.NewSqlite("./cmd/main/analytics.db")
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	r.HandleFunc("/e", analytics.HandleTrackEvent)
+	// wait for ctrl+c to close db connection
+	defer func() {
+		_ = s.Close()
+	}()
+
+	r.HandleFunc("/e", analytics.HandleTrackEvent(s))
+	r.HandleFunc("/api/v1/stats", analytics.GetStats(s))
 	r.HandleFunc("/tag/", tag.HandleTag)
 
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -48,7 +59,8 @@ func main() {
 	if os.Getenv("GO_ENV") == "dev" {
 		log.Println("Running in dev mode")
 	}
-	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), r); err != nil {
+	err = http.ListenAndServe(fmt.Sprintf(":%d", port), r)
+	if err != nil {
 		log.Fatal(err)
 	}
 }

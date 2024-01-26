@@ -1,9 +1,12 @@
 package event
 
 import (
+	"crypto/sha1"
 	"fmt"
+	"net/http"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/mileusna/useragent"
 )
@@ -21,6 +24,7 @@ const (
 var BreakPoints = []int{640, 768, 1024, 1280, 1536}
 
 type Session struct {
+	SessionID  string
 	Language   string
 	Country    string
 	Browser    string
@@ -28,8 +32,15 @@ type Session struct {
 	DeviceType DeviceType
 }
 
-func NewSession() *Session {
-	return &Session{}
+func NewSession(r *http.Request) *Session {
+	ip := getIP(r)
+	sha := sha1.New()
+	sha.Write([]byte(ip))
+	sha.Write([]byte(r.Header.Get("User-Agent")))
+	sha.Write([]byte(fmt.Sprintf("%d", time.Now().Unix()/60/60/24)))
+	return &Session{
+		SessionID: fmt.Sprintf("%x", sha.Sum(nil)),
+	}
 }
 
 func (s *Session) ParseUA(ua string, platform string, browser string) {
@@ -131,4 +142,29 @@ func parseLanguage(l string) (string, string) {
 	lang := strings.TrimSpace(parts[0])
 	country := strings.TrimSpace(parts[1])
 	return lang, country
+}
+
+func getIP(r *http.Request) string {
+	// Get IP from X-REAL-IP or X-FORWARDED-FOR headers if present and not localhost or fallback to RemoteAddr otherwise
+	ip := r.Header.Get("X-REAL-IP")
+	if ip == "" {
+		ip = r.Header.Get("X-FORWARDED-FOR")
+
+		if ip == "" {
+			ip = r.RemoteAddr
+		}
+	}
+
+	// check if localhost or [::1] and replace with 127.0.0.1
+	re := regexp.MustCompile(`^(localhost|\[::1\])(.+)$`)
+	if re.MatchString(ip) {
+		ip = re.ReplaceAllString(ip, "127.0.0.1")
+	}
+	re = regexp.MustCompile(`^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(:.+)$`)
+	if re.MatchString(ip) {
+		ip = re.ReplaceAllString(ip, "$1")
+	}
+	fmt.Println(ip)
+
+	return ip
 }
