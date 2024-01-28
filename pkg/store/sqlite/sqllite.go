@@ -94,12 +94,11 @@ func (s *Sqlite) InsertSession(session *event.Session) error {
 		Os:         session.Os,
 		ScreenType: session.ScreenType,
 		CreatedAt:  time.Now(),
-	}).Exec(context.Background())
+	}).
+		On("CONFLICT (id) DO NOTHING").
+		Exec(context.Background())
 
 	if err != nil {
-		if err.Error() == "UNIQUE constraint failed: sessions.id" {
-			return nil
-		}
 		return err
 	}
 
@@ -153,13 +152,20 @@ func (s *Sqlite) GetStats(from time.Time, to time.Time) (*store.Stats, error) {
 }
 
 func (s *Sqlite) GetViewsAndVisits(period string, from time.Time, to time.Time) (*store.GraphStats, error) {
-	graph := &store.GraphStats{}
+	graph := &store.GraphStats{
+		Period: period,
+	}
 
 	dest := make([]struct {
 		Views  int       `bun:"views"`
 		Visits int       `bun:"visits"`
 		Time   time.Time `bun:"time"`
 	}, 0)
+
+	time_fmt := "%Y-%m-%d"
+	if period == "24h" {
+		time_fmt = "%Y-%m-%d %H:00:00.000000+00:00"
+	}
 
 	q1 := s.db.NewSelect().
 		Model((*store.Event)(nil)).
@@ -183,7 +189,7 @@ func (s *Sqlite) GetViewsAndVisits(period string, from time.Time, to time.Time) 
 	err := s.db.NewSelect().
 		ColumnExpr("COUNT(session_id) as visits").
 		ColumnExpr("SUM(pageview_count) as views").
-		ColumnExpr("strftime('%Y-%m-%d', min_time) as time").
+		ColumnExpr("strftime('"+time_fmt+"', min_time) as time").
 		TableExpr("(?) as t", q2).
 		Where("t.min_time BETWEEN ? AND ?", from, to).
 		Group("time").
@@ -196,7 +202,7 @@ func (s *Sqlite) GetViewsAndVisits(period string, from time.Time, to time.Time) 
 
 	size := 30
 	switch period {
-	case "day":
+	case "24h":
 		size = 24
 	case "7d":
 		size = 7
@@ -209,11 +215,11 @@ func (s *Sqlite) GetViewsAndVisits(period string, from time.Time, to time.Time) 
 
 	for i := 0; i < size; i++ {
 		graph.PageViews[i] = &store.Coord{
-			X: time.Now().AddDate(0, 0, -i).Format("2006-01-02"),
+			X: time.Now().Add(-parsePeriod(period) * time.Duration(i)).Format("2006-01-02 15:04:05"),
 			Y: dataOrDefaultViews(dest, i),
 		}
 		graph.Visitors[i] = &store.Coord{
-			X: time.Now().AddDate(0, 0, -i).Format("2006-01-02"),
+			X: time.Now().Add(-parsePeriod(period) * time.Duration(i)).Format("2006-01-02 15:04:05"),
 			Y: dataOrDefaultVisits(dest, i),
 		}
 	}
@@ -241,4 +247,13 @@ func dataOrDefaultVisits(data []struct {
 		return data[i].Visits
 	}
 	return 0
+}
+
+func parsePeriod(p string) time.Duration {
+	switch p {
+	case "24h":
+		return time.Hour
+	default:
+		return 24 * time.Hour
+	}
 }

@@ -43,6 +43,7 @@ type Coord struct {
 }
 
 type GraphStats struct {
+	Period    string   `json:"period"`
 	PageViews []*Coord `json:"page_views"`
 	Visitors  []*Coord `json:"visitors"`
 }
