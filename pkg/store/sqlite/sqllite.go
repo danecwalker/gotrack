@@ -178,22 +178,42 @@ func (s *Sqlite) GetViewsAndVisits(period string, from time.Time, to time.Time) 
 
 	q2 := s.db.NewSelect().
 		Column("session_id").
+		Column("event_name").
+		Column("created_at").
+		ColumnExpr("SUM(new_session_flag) OVER (ORDER BY session_id, created_at) AS session_group").
+		Table("SessionGroups")
+
+	q3 := s.db.NewSelect().
+		Column("session_id").
 		Column("session_group").
-		ColumnExpr("count(*) as event_count").
-		ColumnExpr("SUM(CASE WHEN event_name = 'pageview' THEN 1 ELSE 0 END) AS pageview_count").
 		ColumnExpr("min(created_at) as min_time").
-		ColumnExpr("max(created_at) as max_time").
-		TableExpr("(?)", q1).
+		TableExpr("(?)", q2).
 		GroupExpr("?, ?", 1, 2)
 
-	err := s.db.NewSelect().
+	q4 := s.db.NewSelect().
 		ColumnExpr("COUNT(session_id) as visits").
-		ColumnExpr("SUM(pageview_count) as views").
 		ColumnExpr("strftime('"+time_fmt+"', min_time) as time").
-		TableExpr("(?) as t", q2).
-		Where("t.min_time BETWEEN ? AND ?", from, to).
+		TableExpr("(?)", q3).
+		Where("min_time BETWEEN ? AND ?", from, to).
 		Group("time").
-		Order("time", "DESC").
+		OrderExpr("time DESC")
+
+	q5 := s.db.NewSelect().
+		Model((*store.Event)(nil)).
+		ColumnExpr("COUNT(event_name) as views").
+		ColumnExpr("strftime('"+time_fmt+"', created_at) as time").
+		Where("created_at BETWEEN ? AND ?", from, to).
+		Where("event_name = 'pageview'").
+		Group("time").
+		OrderExpr("time DESC")
+
+	err := s.db.NewSelect().
+		With("SessionGroups", q1).
+		Column("visits").
+		Column("views").
+		ColumnExpr("t1.time as time").
+		TableExpr("(?) AS t1", q5).
+		Join("JOIN (?) AS t2 ON t1.time = t2.time", q4).
 		Scan(context.Background(), &dest)
 
 	if err != nil {
@@ -213,40 +233,27 @@ func (s *Sqlite) GetViewsAndVisits(period string, from time.Time, to time.Time) 
 	graph.PageViews = make([]*store.Coord, size)
 	graph.Visitors = make([]*store.Coord, size)
 
+	var dCount int = 0
 	for i := 0; i < size; i++ {
-		graph.PageViews[i] = &store.Coord{
-			X: time.Now().Add(-parsePeriod(period) * time.Duration(i)).Format("2006-01-02 15:04:05"),
-			Y: dataOrDefaultViews(dest, i),
-		}
-		graph.Visitors[i] = &store.Coord{
-			X: time.Now().Add(-parsePeriod(period) * time.Duration(i)).Format("2006-01-02 15:04:05"),
-			Y: dataOrDefaultVisits(dest, i),
+		graph.PageViews[i] = &store.Coord{}
+		graph.Visitors[i] = &store.Coord{}
+
+		time := time.Now().Add(-parsePeriod(period) * time.Duration(i))
+
+		graph.PageViews[i].X = time.Format("2006-01-02 15:04:05")
+		graph.Visitors[i].X = time.Format("2006-01-02 15:04:05")
+
+		if dCount < len(dest) && dest[dCount].Time.Hour() >= time.UTC().Hour() {
+			graph.PageViews[i].Y = dest[dCount].Views
+			graph.Visitors[i].Y = dest[dCount].Visits
+			dCount++
+		} else {
+			graph.PageViews[i].Y = 0
+			graph.Visitors[i].Y = 0
 		}
 	}
 
 	return graph, nil
-}
-
-func dataOrDefaultViews(data []struct {
-	Views  int       `bun:"views"`
-	Visits int       `bun:"visits"`
-	Time   time.Time `bun:"time"`
-}, i int) int {
-	if i < len(data) {
-		return data[i].Views
-	}
-	return 0
-}
-
-func dataOrDefaultVisits(data []struct {
-	Views  int       `bun:"views"`
-	Visits int       `bun:"visits"`
-	Time   time.Time `bun:"time"`
-}, i int) int {
-	if i < len(data) {
-		return data[i].Visits
-	}
-	return 0
 }
 
 func parsePeriod(p string) time.Duration {

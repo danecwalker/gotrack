@@ -60,7 +60,7 @@ func GetStats(store store.DBClient) http.HandlerFunc {
 		if r.Header.Get("HX-Request") == "true" {
 			w.Header().Add("Content-Type", "text/html")
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`<div hx-get="/api/v1/stats?period=30d" hx-trigger="every 2s" hx-swap="outerHTML">`))
+			w.Write([]byte(`<div hx-get="/api/v1/stats?period=30d" hx-swap="outerHTML">`))
 			w.Write([]byte(`<h2>` + fmt.Sprint(res.PageViews.Value) + "<span style='font-size: 1rem; margin-left: 2rem;'>" + fmt.Sprint(res.PageViews.Change) + `</span></h2>`))
 			w.Write([]byte(`<h2>` + fmt.Sprint(res.Visitors.Value) + "<span style='font-size: 1rem; margin-left: 2rem;'>" + fmt.Sprint(res.Visitors.Change) + `</span></h2>`))
 			w.Write([]byte(`<h2>` + fmt.Sprint(res.Bounces.Value) + "<span style='font-size: 1rem; margin-left: 2rem;'>" + fmt.Sprint(res.Bounces.Change) + `</span></h2>`))

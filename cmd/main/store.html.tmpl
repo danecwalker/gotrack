@@ -19,12 +19,12 @@
   <a href="/">Home</a>
   <canvas id="chart" style="width:100%; height: 600px;"></canvas>
 
-  <div hx-get="/api/v1/stats?period=30d" hx-trigger="load" hx-swap="outerHTML">
+  <!-- <div hx-get="/api/v1/stats?period=30d" hx-trigger="load" hx-swap="outerHTML">
     <h2>Page Views</h2>
     <h2>Visitors</h2>
     <h2>Bounces</h2>
     <h2>Avg Session Length</h2>
-  </div>
+  </div> -->
   <script>
     (async function () {
       const res = await fetch('/api/v1/graph?period=24h');
