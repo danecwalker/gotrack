@@ -24,12 +24,13 @@ func main() {
 	}
 
 	// wait for ctrl+c to close db connection
-	defer func() {
-		_ = s.Close()
-	}()
+	// defer func() {
+	// 	_ = s.Close()
+	// }()
 
 	r.HandleFunc("/e", analytics.HandleTrackEvent(s))
 	r.HandleFunc("/api/v1/stats", analytics.GetStats(s))
+	r.HandleFunc("/api/v1/graph", analytics.GraphStats(s))
 	r.HandleFunc("/tag/", tag.HandleTag)
 
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

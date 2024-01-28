@@ -1,11 +1,17 @@
 package store
 
-import "github.com/danecwalker/analytics/pkg/event"
+import (
+	"time"
+
+	"github.com/danecwalker/analytics/pkg/event"
+)
 
 type DBClient interface {
-	InsertEvent(event *event.WEvent) error
 	InsertSession(session *event.Session) error
-	GetStats() (*Stats, error)
+	InsertEvent(event *event.WEvent) error
 
-	Close() error
+	GetStats(from time.Time, to time.Time) (*Stats, error)
+	GetViewsAndVisits(period string, from time.Time, to time.Time) (*GraphStats, error)
+
+	// Close() error
 }

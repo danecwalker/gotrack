@@ -4,15 +4,19 @@ import (
 	"context"
 	"database/sql"
 	"os"
+	"time"
 
 	"github.com/danecwalker/analytics/pkg/event"
 	"github.com/danecwalker/analytics/pkg/store"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/uptrace/bun"
+	"github.com/uptrace/bun/dialect/sqlitedialect"
+	"github.com/uptrace/bun/extra/bundebug"
 )
 
 type Sqlite struct {
 	path string
-	conn *sql.DB
+	db   *bun.DB
 }
 
 func NewSqlite(path string) (store.DBClient, error) {
@@ -41,195 +45,40 @@ func (s *Sqlite) init() error {
 		return err
 	}
 
-	s.conn = sq
+	s.db = bun.NewDB(sq, sqlitedialect.New())
+	s.db.AddQueryHook(bundebug.NewQueryHook(
+		bundebug.WithVerbose(true),
+		bundebug.FromEnv("bundebug"),
+	))
 
-	// create tables if they don't exist
-	if err := s.createTables(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *Sqlite) createTables() error {
-	// create tables
-	tx, err := s.conn.BeginTx(context.Background(), nil)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		_ = tx.Rollback()
-	}()
-
-	if _, err := tx.ExecContext(context.Background(), `CREATE TABLE IF NOT EXISTS events (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		session_id INTEGER NOT NULL,
-		event_name TEXT NOT NULL,
-		url TEXT NOT NULL,
-		referrer TEXT,
-		utm_source TEXT,
-		utm_medium TEXT,
-		utm_campaign TEXT,
-		utm_term TEXT,
-		utm_content TEXT,
-		created_at DATETIME NOT NULL,
-		updated_at DATETIME NOT NULL,
-		foreign key(session_id) references sessions(id)
-	);`); err != nil {
-		return err
-	}
-
-	if _, err := tx.ExecContext(context.Background(), `CREATE TABLE IF NOT EXISTS sessions (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		session_id TEXT NOT NULL UNIQUE,
-		device_type TEXT NOT NULL,
-		language TEXT,
-		country TEXT,
-		browser TEXT,
-		os TEXT,
-		created_at DATETIME NOT NULL,
-		updated_at DATETIME NOT NULL
-	);`); err != nil {
-		return err
-	}
-
-	if _, err := tx.ExecContext(context.Background(), `CREATE TABLE IF NOT EXISTS props (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		event_id INTEGER NOT NULL,
-		prop_name TEXT NOT NULL,
-		prop_value TEXT NOT NULL,
-		created_at DATETIME NOT NULL,
-		updated_at DATETIME NOT NULL,
-		foreign key(event_id) references events(id)
-	);`); err != nil {
-		return err
-	}
-
-	if _, err := tx.ExecContext(context.Background(), `CREATE TABLE IF NOT EXISTS revenue (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		event_id INTEGER NOT NULL,
-		revenue_name TEXT NOT NULL,
-		revenue_value TEXT NOT NULL,
-		created_at DATETIME NOT NULL,
-		updated_at DATETIME NOT NULL,
-		foreign key(event_id) references events(id)
-	);`); err != nil {
-		return err
-	}
-
-	if err := tx.Commit(); err != nil {
-		return err
-	}
+	s.db.NewCreateTable().Model((*store.Session)(nil)).IfNotExists().Exec(context.Background())
+	s.db.NewCreateTable().Model((*store.Event)(nil)).IfNotExists().Exec(context.Background())
+	s.db.NewCreateTable().Model((*store.Prop)(nil)).IfNotExists().Exec(context.Background())
+	s.db.NewCreateTable().Model((*store.Revenue)(nil)).IfNotExists().Exec(context.Background())
 
 	return nil
 }
 
-func (s *Sqlite) InsertEvent(event *event.WEvent) error {
-	// insert event
-	tx, err := s.conn.BeginTx(context.Background(), nil)
-	if err != nil {
-		return err
+func (s *Sqlite) InsertEvent(ev *event.WEvent) error {
+	if ev.UTM == nil {
+		ev.UTM = new(event.UTM)
 	}
-	defer func() {
-		_ = tx.Rollback()
-	}()
 
-	var r sql.Result
-	if event.UTM != nil {
-		r, err = tx.ExecContext(context.Background(), `INSERT INTO events (
-		session_id,
-		event_name,
-		url,
-		referrer,
-		utm_source,
-		utm_medium,
-		utm_campaign,
-		utm_term,
-		utm_content,
-		created_at,
-		updated_at
-	) VALUES (
-		?,
-		?,
-		?,
-		?,
-		?,
-		?,
-		?,
-		?,
-		?,
-		datetime('now'),
-		datetime('now')
-	);`, event.SessionID, event.EventName, event.Url, event.Referrer, event.UTM.Source, event.UTM.Medium, event.UTM.Campaign, event.UTM.Term, event.UTM.Content)
-		if err != nil {
-			return err
-		}
-	} else {
-		r, err = tx.ExecContext(context.Background(), `INSERT INTO events (
-		session_id,
-		event_name,
-		url,
-		referrer,
-		created_at,
-		updated_at
-	) VALUES (
-		?,
-		?,
-		?,
-		?,
-		datetime('now'),
-		datetime('now')
-	);`, event.SessionID, event.EventName, event.Url, event.Referrer)
-		if err != nil {
-			return err
-		}
-	}
+	_, err := s.db.NewInsert().Model(&store.Event{
+		SessionID:   ev.SessionID,
+		EventName:   ev.EventName,
+		Url:         ev.Url,
+		Referrer:    ev.Referrer,
+		UTMSource:   ev.UTM.Source,
+		UTMMedium:   ev.UTM.Medium,
+		UTMCampaign: ev.UTM.Campaign,
+		UTMTerm:     ev.UTM.Term,
+		UTMContent:  ev.UTM.Content,
+		CreatedAt:   time.Now(),
+	}).Exec(context.Background())
 
 	// get event id
-	eventID, err := r.LastInsertId()
 	if err != nil {
-		return err
-	}
-
-	// insert props
-	for k, v := range event.Props {
-		if _, err := tx.ExecContext(context.Background(), `INSERT INTO props (
-			event_id,
-			prop_name,
-			prop_value,
-			created_at,
-			updated_at
-		) VALUES (
-			?,
-			?,
-			?,
-			datetime('now'),
-			datetime('now')
-		);`, eventID, k, v); err != nil {
-			return err
-		}
-	}
-
-	// insert revenue
-	for k, v := range event.Revenue {
-		if _, err := tx.ExecContext(context.Background(), `INSERT INTO revenue (
-			event_id,
-			revenue_name,
-			revenue_value,
-			created_at,
-			updated_at
-		) VALUES (
-			?,
-			?,
-			?,
-			datetime('now'),
-			datetime('now')
-		);`, eventID, k, v); err != nil {
-			return err
-		}
-	}
-
-	if err := tx.Commit(); err != nil {
 		return err
 	}
 
@@ -237,78 +86,159 @@ func (s *Sqlite) InsertEvent(event *event.WEvent) error {
 }
 
 func (s *Sqlite) InsertSession(session *event.Session) error {
-	// insert session
-	tx, err := s.conn.BeginTx(context.Background(), nil)
+	_, err := s.db.NewInsert().Model(&store.Session{
+		ID:         session.SessionID,
+		Language:   session.Language,
+		Country:    session.Country,
+		Browser:    session.Browser,
+		Os:         session.Os,
+		ScreenType: session.ScreenType,
+		CreatedAt:  time.Now(),
+	}).Exec(context.Background())
+
 	if err != nil {
-		return err
-	}
-	defer func() {
-		_ = tx.Rollback()
-	}()
-
-	if _, err := tx.ExecContext(context.Background(), `INSERT INTO sessions (
-		session_id,
-		device_type,
-		language,
-		country,
-		browser,
-		os,
-		created_at,
-		updated_at
-	) VALUES (
-		?,
-		?,
-		?,
-		?,
-		?,
-		?,
-		datetime('now'),
-		datetime('now')
-	);`, session.SessionID, session.DeviceType, session.Language, session.Country, session.Browser, session.Os); err != nil {
-		if err.Error() != "UNIQUE constraint failed: sessions.session_id" {
-			return err
+		if err.Error() == "UNIQUE constraint failed: sessions.id" {
+			return nil
 		}
-	}
-
-	if err := tx.Commit(); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (s *Sqlite) GetStats() (*store.Stats, error) {
+func (s *Sqlite) GetStats(from time.Time, to time.Time) (*store.Stats, error) {
 	stats := &store.Stats{}
 
-	q, err := s.conn.QueryContext(
-		context.Background(),
-		`SELECT SUM("t"."pageview_count") AS "pageviews", 
-		COUNT(DISTINCT "t"."session_id") AS "unique_visitors", 
-		SUM(CASE WHEN "t"."event_count" = 1 THEN 1 ELSE 0 END) AS "bounces",
-		SUM(CAST ((JULIANDAY("t"."max_time") - JULIANDAY("t"."min_time")) * 24 * 60 * 60 AS INTEGER)) / COUNT(DISTINCT "t"."session_id") AS "average_session_length"
-		FROM (
-			SELECT "events"."session_id" AS "session_id",
-			COUNT(*) AS "event_count",
-			SUM(CASE WHEN "events"."event_name" = 'pageview' THEN 1 ELSE 0 END) AS "pageview_count",
-			MIN("events"."created_at") AS "min_time",
-			MAX("events"."created_at") AS "max_time"
-			FROM "events"
-			JOIN "sessions" ON "sessions"."session_id" = "events"."session_id"
-			GROUP BY 1
-		) AS "t";`)
+	q1 := s.db.NewSelect().
+		Model((*store.Event)(nil)).
+		ColumnExpr("session_id").
+		ColumnExpr("created_at").
+		ColumnExpr("event_name").
+		ColumnExpr("LAG(created_at) OVER (PARTITION BY session_id ORDER BY created_at) AS prev_timestamp").
+		ColumnExpr("strftime('%s', created_at) - LAG(strftime('%s', created_at)) OVER (PARTITION BY session_id ORDER BY created_at) as difference").
+		ColumnExpr("CASE WHEN LAG(created_at) OVER (PARTITION BY session_id ORDER BY created_at) IS NULL OR strftime('%s', created_at) - LAG(strftime('%s', created_at)) OVER (PARTITION BY session_id ORDER BY created_at) > ? THEN 1 ELSE 0 END AS new_session_flag", event.SessionTimeout)
+
+	q2 := s.db.NewSelect().
+		Column("session_id").
+		Column("event_name").
+		Column("created_at").
+		ColumnExpr("SUM(new_session_flag) OVER (ORDER BY session_id, created_at) AS session_group").
+		Table("SessionGroups")
+
+	q3 := s.db.NewSelect().
+		Column("session_id").
+		Column("session_group").
+		ColumnExpr("count(*) as event_count").
+		ColumnExpr("SUM(CASE WHEN event_name = 'pageview' THEN 1 ELSE 0 END) AS pageview_count").
+		ColumnExpr("min(created_at) as min_time").
+		ColumnExpr("max(created_at) as max_time").
+		TableExpr("(?)", q2).
+		GroupExpr("?, ?", 1, 2)
+
+	err := s.db.NewSelect().
+		With("SessionGroups", q1).
+		ColumnExpr("SUM(t.pageview_count) AS pageviews").
+		ColumnExpr("COUNT(distinct t.session_id) AS unique_visitors").
+		ColumnExpr("SUM(CASE WHEN t.event_count = 1 THEN 1 ELSE 0 END) AS bounces").
+		ColumnExpr("SUM(strftime('%s', t.max_time) - strftime('%s', t.min_time)) / COUNT(distinct t.session_group) AS average_session_length").
+		TableExpr("(?) AS t", q3).
+		Where("t.min_time BETWEEN ? AND ?", from, to).
+		Scan(context.Background(), stats)
+
 	if err != nil {
 		return nil, err
-	}
-
-	if q.Next() {
-		if err := q.Scan(&stats.PageViews, &stats.Visitors, &stats.Bounces, &stats.AverageSessionLength); err != nil {
-			return nil, err
-		}
 	}
 
 	return stats, nil
 }
 
-func (s *Sqlite) Close() error {
-	return s.conn.Close()
+func (s *Sqlite) GetViewsAndVisits(period string, from time.Time, to time.Time) (*store.GraphStats, error) {
+	graph := &store.GraphStats{}
+
+	dest := make([]struct {
+		Views  int       `bun:"views"`
+		Visits int       `bun:"visits"`
+		Time   time.Time `bun:"time"`
+	}, 0)
+
+	q1 := s.db.NewSelect().
+		Model((*store.Event)(nil)).
+		ColumnExpr("session_id").
+		ColumnExpr("created_at").
+		ColumnExpr("event_name").
+		ColumnExpr("LAG(created_at) OVER (PARTITION BY session_id ORDER BY created_at) AS prev_timestamp").
+		ColumnExpr("strftime('%s', created_at) - LAG(strftime('%s', created_at)) OVER (PARTITION BY session_id ORDER BY created_at) as difference").
+		ColumnExpr("CASE WHEN LAG(created_at) OVER (PARTITION BY session_id ORDER BY created_at) IS NULL OR strftime('%s', created_at) - LAG(strftime('%s', created_at)) OVER (PARTITION BY session_id ORDER BY created_at) > ? THEN 1 ELSE 0 END AS new_session_flag", event.SessionTimeout)
+
+	q2 := s.db.NewSelect().
+		Column("session_id").
+		Column("session_group").
+		ColumnExpr("count(*) as event_count").
+		ColumnExpr("SUM(CASE WHEN event_name = 'pageview' THEN 1 ELSE 0 END) AS pageview_count").
+		ColumnExpr("min(created_at) as min_time").
+		ColumnExpr("max(created_at) as max_time").
+		TableExpr("(?)", q1).
+		GroupExpr("?, ?", 1, 2)
+
+	err := s.db.NewSelect().
+		ColumnExpr("COUNT(session_id) as visits").
+		ColumnExpr("SUM(pageview_count) as views").
+		ColumnExpr("strftime('%Y-%m-%d', min_time) as time").
+		TableExpr("(?) as t", q2).
+		Where("t.min_time BETWEEN ? AND ?", from, to).
+		Group("time").
+		Order("time", "DESC").
+		Scan(context.Background(), &dest)
+
+	if err != nil {
+		return nil, err
+	}
+
+	size := 30
+	switch period {
+	case "day":
+		size = 24
+	case "7d":
+		size = 7
+	case "30d":
+		size = 30
+	}
+
+	graph.PageViews = make([]*store.Coord, size)
+	graph.Visitors = make([]*store.Coord, size)
+
+	for i := 0; i < size; i++ {
+		graph.PageViews[i] = &store.Coord{
+			X: time.Now().AddDate(0, 0, -i).Format("2006-01-02"),
+			Y: dataOrDefaultViews(dest, i),
+		}
+		graph.Visitors[i] = &store.Coord{
+			X: time.Now().AddDate(0, 0, -i).Format("2006-01-02"),
+			Y: dataOrDefaultVisits(dest, i),
+		}
+	}
+
+	return graph, nil
+}
+
+func dataOrDefaultViews(data []struct {
+	Views  int       `bun:"views"`
+	Visits int       `bun:"visits"`
+	Time   time.Time `bun:"time"`
+}, i int) int {
+	if i < len(data) {
+		return data[i].Views
+	}
+	return 0
+}
+
+func dataOrDefaultVisits(data []struct {
+	Views  int       `bun:"views"`
+	Visits int       `bun:"visits"`
+	Time   time.Time `bun:"time"`
+}, i int) int {
+	if i < len(data) {
+		return data[i].Visits
+	}
+	return 0
 }

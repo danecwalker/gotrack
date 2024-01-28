@@ -8,6 +8,8 @@ import (
 	"github.com/danecwalker/analytics/pkg/utils"
 )
 
+const SessionTimeout = 30 * 60
+
 type Event struct {
 	EventName    string                 `json:"n"`
 	Url          string                 `json:"u"`

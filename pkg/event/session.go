@@ -11,14 +11,14 @@ import (
 	"github.com/mileusna/useragent"
 )
 
-type DeviceType string
+type ScreenType string
 
 const (
-	Mobile  DeviceType = "mobile"
-	Tablet  DeviceType = "tablet"
-	Laptop  DeviceType = "laptop"
-	Desktop DeviceType = "desktop"
-	Display DeviceType = "display"
+	Mobile  ScreenType = "mobile"
+	Tablet  ScreenType = "tablet"
+	Laptop  ScreenType = "laptop"
+	Desktop ScreenType = "desktop"
+	Display ScreenType = "display"
 )
 
 var BreakPoints = []int{640, 768, 1024, 1280, 1536}
@@ -29,7 +29,7 @@ type Session struct {
 	Country    string
 	Browser    string
 	Os         string
-	DeviceType DeviceType
+	ScreenType ScreenType
 }
 
 func NewSession(r *http.Request) *Session {
@@ -44,6 +44,7 @@ func NewSession(r *http.Request) *Session {
 }
 
 func (s *Session) ParseUA(ua string, platform string, browser string) {
+	fmt.Println(ua)
 	if ua != "" {
 		agent := useragent.Parse(ua)
 		if platform != "" {
@@ -70,7 +71,7 @@ func (s *Session) ParseUA(ua string, platform string, browser string) {
 
 func (s *Session) ParseViewportSize(size string) {
 	if size == "" {
-		s.DeviceType = Desktop
+		s.ScreenType = Desktop
 		return
 	}
 
@@ -78,20 +79,20 @@ func (s *Session) ParseViewportSize(size string) {
 	h := 0
 	_, err := fmt.Sscanf(size, "%dx%d", &w, &h)
 	if err != nil {
-		s.DeviceType = Desktop
+		s.ScreenType = Desktop
 		return
 	}
 
 	if w < BreakPoints[0] {
-		s.DeviceType = Mobile
+		s.ScreenType = Mobile
 	} else if w < BreakPoints[1] {
-		s.DeviceType = Tablet
+		s.ScreenType = Tablet
 	} else if w < BreakPoints[2] {
-		s.DeviceType = Laptop
+		s.ScreenType = Laptop
 	} else if w < BreakPoints[3] {
-		s.DeviceType = Desktop
+		s.ScreenType = Desktop
 	} else {
-		s.DeviceType = Display
+		s.ScreenType = Display
 	}
 }
 
