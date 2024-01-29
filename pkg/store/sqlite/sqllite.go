@@ -3,6 +3,7 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"os"
 	"time"
 
@@ -74,7 +75,7 @@ func (s *Sqlite) InsertEvent(ev *event.WEvent) error {
 		UTMCampaign: ev.UTM.Campaign,
 		UTMTerm:     ev.UTM.Term,
 		UTMContent:  ev.UTM.Content,
-		CreatedAt:   time.Now(),
+		CreatedAt:   time.Now().UTC(),
 	}).Exec(context.Background())
 
 	// get event id
@@ -93,7 +94,7 @@ func (s *Sqlite) InsertSession(session *event.Session) error {
 		Browser:    session.Browser,
 		Os:         session.Os,
 		ScreenType: session.ScreenType,
-		CreatedAt:  time.Now(),
+		CreatedAt:  time.Now().UTC(),
 	}).
 		On("CONFLICT (id) DO NOTHING").
 		Exec(context.Background())
@@ -238,12 +239,25 @@ func (s *Sqlite) GetViewsAndVisits(period string, from time.Time, to time.Time) 
 		graph.PageViews[i] = &store.Coord{}
 		graph.Visitors[i] = &store.Coord{}
 
-		time := time.Now().Add(-parsePeriod(period) * time.Duration(i))
+		var t time.Time
+		var format string
+		switch period {
+		case "24h":
+			format = "2006-01-02 15:04 +0000 UTC"
+			t = to.Add(-1 * time.Hour)
+		default:
+			format = "2006-01-02 00:00 +0000 UTC"
+			t = to.AddDate(0, 0, -1)
+		}
 
-		graph.PageViews[i].X = time.Format("2006-01-02 15:04:05")
-		graph.Visitors[i].X = time.Format("2006-01-02 15:04:05")
+		t = t.Add(-parsePeriod(period) * time.Duration(i))
 
-		if dCount < len(dest) && dest[dCount].Time.Hour() >= time.UTC().Hour() {
+		graph.PageViews[i].X = t.Format(format)
+		graph.Visitors[i].X = t.Format(format)
+
+		fmt.Println(dest[0].Time)
+
+		if dCount < len(dest) && dest[dCount].Time.Compare(t) >= 0 {
 			graph.PageViews[i].Y = dest[dCount].Views
 			graph.Visitors[i].Y = dest[dCount].Visits
 			dCount++

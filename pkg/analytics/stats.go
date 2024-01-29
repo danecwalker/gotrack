@@ -20,7 +20,7 @@ func GetStats(store store.DBClient) http.HandlerFunc {
 		}
 
 		d := r.URL.Query().Get("date")
-		now := time.Now()
+		now := time.Now().UTC()
 		if d != "" {
 			pd, err := strconv.ParseInt(d, 10, 64)
 			if err != nil {
@@ -89,22 +89,13 @@ func GraphStats(store store.DBClient) http.HandlerFunc {
 			return
 		}
 
-		d := r.URL.Query().Get("date")
-		now := time.Now()
-		if d != "" {
-			pd, err := strconv.ParseInt(d, 10, 64)
-			if err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				w.Write([]byte(err.Error()))
-				return
-			}
-			n := time.Unix(pd, 0)
-			if err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				w.Write([]byte(err.Error()))
-				return
-			}
-			now = n
+		now := time.Now().UTC()
+
+		switch r.URL.Query().Get("period") {
+		case "24h":
+			now = time.Date(now.Year(), now.Month(), now.Day(), now.Hour()+1, 0, 0, 0, time.UTC)
+		default:
+			now = time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, time.UTC)
 		}
 
 		duration := parsePeriod(r.URL.Query().Get("period"))
