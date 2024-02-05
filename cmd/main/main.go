@@ -9,9 +9,9 @@ import (
 	"os"
 	"regexp"
 
-	"github.com/danecwalker/analytics/pkg/analytics"
-	"github.com/danecwalker/analytics/pkg/store/sqlite"
-	"github.com/danecwalker/analytics/pkg/tag"
+	"github.com/danecwalker/gotrack/pkg/analytics"
+	"github.com/danecwalker/gotrack/pkg/store/sqlite"
+	"github.com/danecwalker/gotrack/pkg/tag"
 )
 
 const port int = 3000

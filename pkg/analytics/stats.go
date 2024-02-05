@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/danecwalker/analytics/pkg/store"
-	"github.com/danecwalker/analytics/pkg/tag"
+	"github.com/danecwalker/gotrack/pkg/store"
+	"github.com/danecwalker/gotrack/pkg/tag"
 )
 
 func GetStats(store store.DBClient) http.HandlerFunc {

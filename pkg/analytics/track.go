@@ -3,9 +3,9 @@ package analytics
 import (
 	"net/http"
 
-	"github.com/danecwalker/analytics/pkg/event"
-	"github.com/danecwalker/analytics/pkg/store"
-	"github.com/danecwalker/analytics/pkg/tag"
+	"github.com/danecwalker/gotrack/pkg/event"
+	"github.com/danecwalker/gotrack/pkg/store"
+	"github.com/danecwalker/gotrack/pkg/tag"
 )
 
 func HandleTrackEvent(store store.DBClient) http.HandlerFunc {

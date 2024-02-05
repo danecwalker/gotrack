@@ -1,4 +1,4 @@
-module github.com/danecwalker/analytics
+module github.com/danecwalker/gotrack
 
 go 1.21.3
 

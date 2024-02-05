@@ -3,7 +3,7 @@ package store
 import (
 	"time"
 
-	"github.com/danecwalker/analytics/pkg/event"
+	"github.com/danecwalker/gotrack/pkg/event"
 )
 
 type DBClient interface {

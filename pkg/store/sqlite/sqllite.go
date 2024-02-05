@@ -7,8 +7,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/danecwalker/analytics/pkg/event"
-	"github.com/danecwalker/analytics/pkg/store"
+	"github.com/danecwalker/gotrack/pkg/event"
+	"github.com/danecwalker/gotrack/pkg/store"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/sqlitedialect"

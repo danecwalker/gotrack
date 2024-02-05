@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/danecwalker/analytics/pkg/utils"
+	"github.com/danecwalker/gotrack/pkg/utils"
 )
 
 const SessionTimeout = 30 * 60
