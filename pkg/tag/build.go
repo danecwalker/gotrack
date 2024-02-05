@@ -1,6 +1,7 @@
 package tag
 
 import (
+	_ "embed"
 	"fmt"
 	"strings"
 	"text/template"
@@ -14,10 +15,16 @@ type BuildOptions struct {
 	IncludeRevenue bool
 }
 
+//go:embed tag.js
+var tagJS string
+
+//go:embed custom.js
+var customJS string
+
 func buildJS(options *BuildOptions) ([]byte, error) {
 	templateFiles := []string{
-		"pkg/tag/tag.js",
-		"pkg/tag/custom.js",
+		tagJS,
+		customJS,
 	}
 	t, err := template.New("").ParseFiles(templateFiles...)
 	if err != nil {
