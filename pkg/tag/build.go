@@ -22,11 +22,11 @@ var tagJS string
 var customJS string
 
 func buildJS(options *BuildOptions) ([]byte, error) {
-	templateFiles := []string{
+	templates := []string{
 		tagJS,
 		customJS,
 	}
-	t, err := template.New("").ParseFiles(templateFiles...)
+	t, err := template.New("").Parse(strings.Join(templates, "\n"))
 	if err != nil {
 		return nil, err
 	}
