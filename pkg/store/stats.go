@@ -1,10 +1,10 @@
 package store
 
 type Stats struct {
-	PageViews            int `json:"page_views" bun:"pageviews"`
-	Visitors             int `json:"visitors" bun:"unique_visitors"`
-	Bounces              int `json:"bounces" bun:"bounces"`
-	AverageSessionLength int `json:"average_session_length" bun:"average_session_length"`
+	PageViews            int `json:"page_views"`
+	Visitors             int `json:"visitors"`
+	Bounces              int `json:"bounces"`
+	AverageSessionLength int `json:"average_session_length"`
 }
 
 type Diff struct {

@@ -18,6 +18,7 @@ const port int = 3000
 
 func main() {
 	r := http.NewServeMux()
+	// s, err := sqlite.NewSqlite(":memory:")
 	s, err := sqlite.NewSqlite("./cmd/main/analytics.db")
 	if err != nil {
 		log.Fatal(err)
